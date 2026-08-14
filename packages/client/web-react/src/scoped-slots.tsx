@@ -13,6 +13,7 @@ import {
   HostContext, SessionMaybeProvider, SessionProvider, SlotAssemblyError, maybeObservableHook,
   observableHook, projectionHook, useHost, useSessionMaybeProvideInfo,
 } from './session-provider.tsx'
+import { installDomRemovalIdempotency } from './dom-idempotency.ts'
 
 type InjectedProps = Record<string, unknown>
 
@@ -895,6 +896,7 @@ function RootOutlet({ ownerProps }: { ownerProps: object }) {
  * @returns the renderer.
  */
 export function createSlotRenderer(): SlotRenderer {
+  installDomRemovalIdempotency()
   return {
     renderRoot(host, ownerProps) {
       return (
