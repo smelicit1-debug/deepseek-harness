@@ -146,6 +146,13 @@ export default defineConfig({
       { find: /^@deepseek-ai\/dsh-client-ui-attachment$/, replacement: src('../../packages/client/ui-attachment/src/index.ts') },
       { find: /^@deepseek-ai\/dsh-client-schema-form$/, replacement: src('../../packages/client/schema-form/src/index.ts') },
       { find: /^@deepseek-ai\/dsh-client-modules\/client$/, replacement: src('../../packages/client/modules/src/client/index.ts') },
+      // The vendored framework layer is workspace code too: resolving it to
+      // source keeps the shell build self-sufficient (no prebuilt lib/ needed
+      // in a fresh checkout) and matches the browserization defines below.
+      { find: /^@deepseek-ai\/cordis$/, replacement: src('../../vendor/cordis/src/index.ts') },
+      { find: /^@deepseek-ai\/cordis-plugin-loader$/, replacement: src('../../vendor/loader/src/index.ts') },
+      { find: /^@deepseek-ai\/schemastery$/, replacement: src('../../vendor/schemastery/src/index.ts') },
+      { find: /^@deepseek-ai\/cosmokit$/, replacement: src('../../vendor/cosmokit/src/index.ts') },
     ],
   },
   define: {
