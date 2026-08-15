@@ -88,7 +88,14 @@ export class ModelDirectoryResolver extends Service {
     const conversation = this.ctx.get('conversation')
     if (conversation !== undefined) {
       const publish = (): void => {
-        conversation.blocks.set(sessionId, directory.store.getSnapshot().routable === false
+        const snapshot = directory.store.getSnapshot()
+        // Only a settled, Host-confirmed negative blocks. Transient states
+        // (idle, loading, selecting, error — a failed re-pull preserves the
+        // last routable answer) must never freeze typing: the route advisory
+        // can flap across a connection hiccup or a route re-resolution, and
+        // the composer eating keystrokes over a flap is worse than a send
+        // that fails on its own terms.
+        conversation.blocks.set(sessionId, snapshot.status === 'ready' && snapshot.routable === false
           ? { reason: this.blockReason() }
           : undefined)
       }

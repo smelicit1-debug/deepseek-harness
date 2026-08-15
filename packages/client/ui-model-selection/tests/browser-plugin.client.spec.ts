@@ -57,10 +57,17 @@ const GROUPS = [{
 async function bench() {
   const ctx = new Context()
   let current: ModelSelection = { provider: 'deepseek-official', model: 'deepseek-v4-flash' }
+  let failNext = false
   const calls = { models: 0, select: 0 }
   ctx.provide('connection', { api: { sessions: {
     models: () => {
       calls.models += 1
+      if (failNext) {
+        failNext = false
+        return Promise.resolve({
+          result: { ok: false as const, error: { code: 'internal' as const, message: 'boom' } },
+        })
+      }
       return Promise.resolve({
         result: { ok: true as const, value: { current, routable, groups: GROUPS, failures: [] } },
       })
@@ -130,6 +137,7 @@ async function bench() {
     setHostCurrent: (selection: ModelSelection) => { current = selection },
     address: (id: SessionId) => { addressed.add(id) },
     setRoutable: (next: boolean) => { routable = next },
+    failNext: () => { failNext = true },
     blockOf: (key: string) => blocks.get(sid(key)),
   }
 }
@@ -258,6 +266,32 @@ describe('ui-model-selection dual entry', () => {
     await Promise.resolve()
     await Promise.resolve()
     expect(b.blockOf('s1')).toBeUndefined()
+  })
+
+  it('a failed re-pull never keeps a stale block on the composer', async () => {
+    const b = await bench()
+    b.mint('s1')
+    const face = b.seat().inject!(sid('s1'))
+    b.setRoutable(false)
+    face.load()
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(b.blockOf('s1')?.reason).toBe(zh['blocked.composer'])
+
+    // A transient re-pull failure (connection flap, route re-resolution) must
+    // clear the block: the advisory is stale, and freezing typing over an
+    // outage is exactly the lock a working composer must never suffer.
+    b.failNext()
+    b.ctx.remote.$dispatch('llm/adapters-updated', [])
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(b.blockOf('s1')).toBeUndefined()
+
+    // A settled Host-confirmed negative re-blocks once the pull succeeds again.
+    b.ctx.remote.$dispatch('llm/adapters-updated', [])
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(b.blockOf('s1')?.reason).toBe(zh['blocked.composer'])
   })
 
   it('never blocks on catalog membership alone', async () => {
