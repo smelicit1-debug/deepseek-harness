@@ -824,6 +824,24 @@ describe('running and lock semantics', () => {
     expect(backdrop.textContent).toBe('line\n'.repeat(40))
   })
 
+  it('swaps the backdrop container per draft revision, so no orphaned glyph node survives', () => {
+    const { view, shell } = bench({ draft: 'ab' })
+    const backdrop = () => view.container.querySelector<HTMLElement>('[data-input-backdrop]')!
+    const first = backdrop()
+    expect(first.textContent).toBe('ab')
+    act(() => { shell.setDraft('cd') })
+    const second = backdrop()
+    // A fresh container per revision: the previous one — and any text node a
+    // racing commit left orphaned in it — is detached whole, never reconciled
+    // node by node (per-node reconciliation across the snapshot-subscriber
+    // double commit is what stranded stale words in the visible layer).
+    expect(second).not.toBe(first)
+    expect(second.textContent).toBe('cd')
+    // An identical draft is a machine no-op: no revision, no remount.
+    act(() => { shell.setDraft('cd') })
+    expect(backdrop()).toBe(second)
+  })
+
   it('an edit the composer performs itself scrolls the caret back into view', async () => {
     // Paste and cut suppress the native edit, so no engine reveals the caret
     // for them. jsdom has no layout: the rects are stubbed,

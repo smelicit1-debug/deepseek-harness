@@ -695,7 +695,16 @@ export function InputBar({
             which a compositor-driven gesture outruns and leaves the words trailing the caret. */}
         <div ref={scrollRef} className={css.scroll} data-input-scroll>
           <div className={css.grow}>
-            <div aria-hidden className={css.backdrop} data-input-backdrop>{backdrop}</div>
+            {/* The backdrop is keyed by draft revision: a draft change swaps
+                the whole container instead of reconciling its text nodes one
+                by one. Per-node reconciliation across the snapshot-subscriber
+                double commit could leave an orphaned text node behind (the DOM
+                then shows stale words that never clear, and fresh ones append
+                after them), and a many-node clear is what raced into the
+                removeChild crash. Swapping the container makes both impossible:
+                the old container (with any orphan) is detached whole, and no
+                per-node removal can race. */}
+            <div key={input?.draftRev ?? 0} aria-hidden className={css.backdrop} data-input-backdrop>{backdrop}</div>
             <textarea
               ref={inputRef}
               className={css.input}
